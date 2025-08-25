@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: sp
+      POSTGRES_PASSWORD: sp
+      POSTGRES_DB: sp
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U sp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      KAFKA_ENABLE_KRAFT: "yes"
+      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_KRAFT_CLUSTER_ID: "abcdefghijklmnopqrstuv"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports: ["9092:9092"]
+    healthcheck:
+      test: ["CMD-SHELL","/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  ledger-svc:
+    build: ./services/ledger-svc
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      PORT: "3001"
+      PGHOST: "postgres"
+      PGPORT: "5432"
+      PGUSER: "sp"
+      PGPASSWORD: "sp"
+      PGDATABASE: "sp"
+      KAFKA_BROKERS: "kafka:9092"
+      KAFKA_CLIENT_ID: "ledger"
+      KAFKA_GROUP_ID: "ledger-consumer"
+    ports: ["3001:3001"]
+
+  api-svc:
+    build: ./services/api-svc
+    depends_on:
+      ledger-svc:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      PORT: "3000"
+      KAFKA_BROKERS: "kafka:9092"
+      KAFKA_CLIENT_ID: "api"
+      LEDGER_URL: "http://ledger-svc:3001"
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:
