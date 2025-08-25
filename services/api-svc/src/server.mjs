@@ -2,6 +2,7 @@ import express from 'express';
 import { Kafka } from 'kafkajs';
 import axios from 'axios';
 import { nanoid } from 'nanoid';
+import cors from 'cors';
 import { randomUUID } from 'node:crypto'; // NEU
 
 
@@ -34,6 +35,7 @@ await admin.disconnect();
 
 
 const app = express();
+app.use(cors()); //CORS Aktivieren
 app.use(express.json());
 
 
@@ -91,10 +93,21 @@ res.status(e.response?.status || 500).json(e.response?.data || { error: 'lookup 
 }
 });
 
+// --- Alle Nutzer abfragen (delegiert an Ledger REST) ---
+app.get('/users', async (req, res) => {
+  try {
+    const r = await axios.get(`${LEDGER_URL}/users`);
+    res.json(r.data);
+  } catch (e) {
+    res.status(e.response?.status || 500).json(e.response?.data || { error: 'lookup failed' });
+  }
+});
+
+
 
 // Start
 (async () => {
 await ensureTopics();
 await producer.connect();
-app.listen(PORT, () => console.log(`api-svc listening on :${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`api-svc listening on :${PORT}`));
 })();

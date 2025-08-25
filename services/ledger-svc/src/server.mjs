@@ -23,26 +23,43 @@ app.use(express.json());
 
 // ---- REST: Users & Accounts ----
 app.post('/users', async (req, res) => {
-  const { name } = req.body || {};
+  const { id, name } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name required' });
-  const id = cryptoRandomUuid();
-  await pool.query('insert into users(id, name) values ($1,$2)', [id, name]);
-  res.status(201).json({ id, name });
+  const userId = id || cryptoRandomUuid(); // Client-ID oder automatisch
+  await pool.query('insert into users(id, name) values ($1,$2)', [userId, name]);
+  res.status(201).json({ id: userId, name });
 });
 
+
 app.post('/accounts', async (req, res) => {
-  const { userId, initialBalance } = req.body || {};
+  const { id, userId, initialBalance } = req.body || {};
   if (!userId || initialBalance == null) return res.status(400).json({ error: 'userId & initialBalance required' });
-  const id = cryptoRandomUuid();
-  await pool.query('insert into accounts(id, user_id, balance) values ($1,$2,$3)', [id, userId, initialBalance]);
-  res.status(201).json({ id, userId, balance: Number(initialBalance) });
+  const accountId = id || cryptoRandomUuid();
+  await pool.query('insert into accounts(id, user_id, balance) values ($1,$2,$3)', [accountId, userId, initialBalance]);
+  res.status(201).json({ id: accountId, userId, balance: Number(initialBalance) });
 });
+
 
 app.get('/accounts/:id', async (req, res) => {
   const r = await pool.query('select id, user_id as "userId", balance from accounts where id=$1', [req.params.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
   res.json(r.rows[0]);
 });
+
+// alle Nutzer + deren Konten
+app.get('/users', async (req, res) => {
+  const users = await pool.query('select id, name from users');
+  const accounts = await pool.query('select id, user_id as "userId", balance from accounts');
+  
+  const result = users.rows.map(u => ({
+    id: u.id,
+    name: u.name,
+    accounts: accounts.rows.filter(a => a.userId === u.id)
+  }));
+
+  res.json(result);
+});
+
 
 app.get('/transfers/:id', async (req, res) => {
   const r = await pool.query(
@@ -86,6 +103,8 @@ async function handleTransfer({ transferId, fromAccountId, toAccountId, amount }
         'insert into ledger_entries(transfer_id, account_id, delta, balance_after) values ($1,$2,$3,$4)',
         [transferId, fromAccountId, -amt, newFrom]
       );
+
+
 
       // Gutschrift
       const newTo = Number(to.balance) + amt;

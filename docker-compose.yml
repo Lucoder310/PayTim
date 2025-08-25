@@ -13,6 +13,9 @@ services:
       retries: 20
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - paytim_net
+    
 
   kafka:
     image: bitnami/kafka:3.7
@@ -33,6 +36,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 30
+    networks:
+      - paytim_net
 
   ledger-svc:
     build: ./services/ledger-svc
@@ -52,6 +57,8 @@ services:
       KAFKA_CLIENT_ID: "ledger"
       KAFKA_GROUP_ID: "ledger-consumer"
     ports: ["3001:3001"]
+    networks:
+      - paytim_net
 
   api-svc:
     build: ./services/api-svc
@@ -66,6 +73,21 @@ services:
       KAFKA_CLIENT_ID: "api"
       LEDGER_URL: "http://ledger-svc:3001"
     ports: ["3000:3000"]
+    networks:
+      - paytim_net
+
+  web-ui:
+    build: ./services/web-ui
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api-svc
+    networks:
+      - paytim_net
 
 volumes:
   pgdata:
+
+networks:
+  paytim_net:
+

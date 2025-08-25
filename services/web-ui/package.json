@@ -1,0 +1,11 @@
+{
+  "name": "web-ui",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "serve -s . -l 8080"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "serve": "^14.2.0"
+  }
+}
