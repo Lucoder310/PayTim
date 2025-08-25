@@ -1,51 +1,69 @@
-// Wenn im Browser vom Host: localhost, sonst Container-Name
+// API-URL je nach Umgebung
 const API = (() => {
-  // Docker-Container-Umgebung setzt oft window.location.hostname auf localhost? prüfen
   const host = window.location.hostname;
   return host === 'localhost' || host === '127.0.0.1'
-    ? 'http://localhost:3000'   // Host-Browser greift auf gemappten Port zu
-    : 'http://api-svc:3000';    // Web-UI Container greift intern auf api-svc
+    ? 'http://localhost:3000'
+    : 'http://api-svc:3000';
 })();
 
-// --- User erstellen mit optionaler ID + Startbalance ---
+// Axios mit Standard-Timeout
+const axiosInstance = axios.create({ timeout: 5000 });
+
+// --- User erstellen ---
 async function createUser() {
-  const name = document.getElementById('userName').value;
-  const id = document.getElementById('userId').value || undefined;
-  const balance = parseFloat(document.getElementById('startBalance').value) || 0;
+  const nameEl = document.getElementById('userName');
+  const idEl = document.getElementById('userId');
+  const balanceEl = document.getElementById('startBalance');
+
+  if (!nameEl || !balanceEl) return alert('Formular nicht vollständig');
+  const name = nameEl.value.trim();
+  const id = idEl?.value.trim() || undefined;
+  const balance = parseFloat(balanceEl.value) || 0;
 
   if (!name) return alert('Name ist erforderlich');
 
   try {
-    const uRes = await axios.post(`${API}/users`, { name, id });
+    const uRes = await axiosInstance.post(`${API}/users`, { name, id });
     const userId = uRes.data.id;
 
-    const aRes = await axios.post(`${API}/accounts`, { userId, initialBalance: balance });
+    const aRes = await axiosInstance.post(`${API}/accounts`, { userId, initialBalance: balance });
 
     alert(`User angelegt: ${userId} | Konto: ${aRes.data.id} | Balance: ${aRes.data.balance}`);
     listUsers();
   } catch (e) {
-    console.error(e);
-    alert('Fehler beim Anlegen des Users');
+    console.error('createUser error:', e);
+    const msg = e.response?.data?.error || e.message || 'Unbekannter Fehler';
+    alert(`Fehler beim Anlegen des Users: ${msg}`);
   }
 }
 
 // --- Kontostand abfragen ---
 async function getBalance() {
-  const id = document.getElementById('accountId').value;
+  const idEl = document.getElementById('accountId');
+  const resultEl = document.getElementById('balanceResult');
+  if (!idEl || !resultEl) return;
+
+  const id = idEl.value.trim();
+  if (!id) return resultEl.innerText = 'Bitte Account-ID eingeben';
+
   try {
-    const res = await axios.get(`${API}/accounts/${id}`);
-    document.getElementById('balanceResult').innerText = `Balance: ${res.data.balance}`;
+    const res = await axiosInstance.get(`${API}/accounts/${id}`);
+    resultEl.innerText = `Balance: ${res.data.balance}`;
   } catch (e) {
-    document.getElementById('balanceResult').innerText = 'Fehler beim Abrufen';
+    console.error('getBalance error:', e);
+    const msg = e.response?.data?.error || 'Fehler beim Abrufen';
+    resultEl.innerText = msg;
   }
 }
 
 // --- Alle Nutzer auflisten ---
 async function listUsers() {
+  const container = document.getElementById('userList');
+  if (!container) return;
+
+  container.innerHTML = '';
   try {
-    const res = await axios.get(`${API}/users`);
-    const container = document.getElementById('userList');
-    container.innerHTML = '';
+    const res = await axiosInstance.get(`${API}/users`);
     res.data.forEach(u => {
       const div = document.createElement('div');
       const accounts = (u.accounts || []).map(a => `${a.id}: ${a.balance}`).join(', ') || 'keine Konten';
@@ -53,28 +71,38 @@ async function listUsers() {
       container.appendChild(div);
     });
   } catch (e) {
-    console.error(e);
+    console.error('listUsers error:', e);
+    const div = document.createElement('div');
+    div.innerText = 'Fehler beim Laden der Nutzer';
+    container.appendChild(div);
   }
 }
 
 // --- Transfer starten ---
 async function transfer() {
-  const fromAccountId = document.getElementById('fromAccount').value;
-  const toAccountId = document.getElementById('toAccount').value;
-  const amount = parseFloat(document.getElementById('amount').value);
+  const fromEl = document.getElementById('fromAccount');
+  const toEl = document.getElementById('toAccount');
+  const amountEl = document.getElementById('amount');
+  const resultEl = document.getElementById('transferResult');
+  if (!fromEl || !toEl || !amountEl || !resultEl) return;
+
+  const fromAccountId = fromEl.value.trim();
+  const toAccountId = toEl.value.trim();
+  const amount = parseFloat(amountEl.value);
 
   if (!fromAccountId || !toAccountId || isNaN(amount)) {
     return alert('Bitte alle Felder ausfüllen');
   }
 
   try {
-    const res = await axios.post(`${API}/transfers`, { fromAccountId, toAccountId, amount });
-    document.getElementById('transferResult').innerText = `Transfer gestartet: ${res.data.transferId}`;
+    const res = await axiosInstance.post(`${API}/transfers`, { fromAccountId, toAccountId, amount });
+    resultEl.innerText = `Transfer gestartet: ${res.data.transferId}`;
   } catch (e) {
-    console.error(e);
-    document.getElementById('transferResult').innerText = 'Fehler beim Transfer';
+    console.error('transfer error:', e);
+    const msg = e.response?.data?.error || 'Fehler beim Transfer';
+    resultEl.innerText = msg;
   }
 }
 
 // --- Initial ---
-listUsers();
+document.addEventListener('DOMContentLoaded', listUsers);

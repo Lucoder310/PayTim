@@ -4,6 +4,8 @@ import { pool, migrate, withTx } from './db.mjs';
 import { nanoid } from 'nanoid';
 import { randomUUID } from 'node:crypto'; // NEU
 
+process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason));
+process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err));
 
 const PORT = process.env.PORT || 3001;
 
@@ -23,42 +25,64 @@ app.use(express.json());
 
 // ---- REST: Users & Accounts ----
 app.post('/users', async (req, res) => {
-  const { id, name } = req.body || {};
-  if (!name) return res.status(400).json({ error: 'name required' });
-  const userId = id || cryptoRandomUuid(); // Client-ID oder automatisch
-  await pool.query('insert into users(id, name) values ($1,$2)', [userId, name]);
-  res.status(201).json({ id: userId, name });
+  try {
+    const { id, name } = req.body || {};
+    if (!name) {
+      res.status(400).json({ error: 'name required' });
+      return;
+    }
+    const userId = id || cryptoRandomUuid();
+    await pool.query('insert into users(id, name) values ($1,$2)', [userId, name]);
+    res.status(201).json({ id: userId, name });
+  } catch (e) {
+    console.error('Error creating user:', e.message);
+    res.status(500).json({ error: 'creation failed' });
+  }
 });
 
-
+// /accounts
 app.post('/accounts', async (req, res) => {
-  const { id, userId, initialBalance } = req.body || {};
-  if (!userId || initialBalance == null) return res.status(400).json({ error: 'userId & initialBalance required' });
-  const accountId = id || cryptoRandomUuid();
-  await pool.query('insert into accounts(id, user_id, balance) values ($1,$2,$3)', [accountId, userId, initialBalance]);
-  res.status(201).json({ id: accountId, userId, balance: Number(initialBalance) });
+  try {  // <<< NEU
+    const { id, userId, initialBalance } = req.body || {};
+    if (!userId || initialBalance == null) return res.status(400).json({ error: 'userId & initialBalance required' });
+    const accountId = id || cryptoRandomUuid();
+    await pool.query('insert into accounts(id, user_id, balance) values ($1,$2,$3)', [accountId, userId, initialBalance]);
+    res.status(201).json({ id: accountId, userId, balance: Number(initialBalance) });
+  } catch (e) {  // <<< NEU
+    console.error('Error creating account:', e.message);
+    res.status(500).json({ error: 'creation failed' });
+  }
 });
 
-
+// /accounts/:id
 app.get('/accounts/:id', async (req, res) => {
-  const r = await pool.query('select id, user_id as "userId", balance from accounts where id=$1', [req.params.id]);
-  if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
-  res.json(r.rows[0]);
+  try {  // <<< NEU
+    const r = await pool.query('select id, user_id as "userId", balance from accounts where id=$1', [req.params.id]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
+    res.json(r.rows[0]);
+  } catch (e) {  // <<< NEU
+    console.error('Error fetching account:', e.message);
+    res.status(500).json({ error: 'lookup failed' });
+  }
 });
 
 // alle Nutzer + deren Konten
 app.get('/users', async (req, res) => {
-  const users = await pool.query('select id, name from users');
-  const accounts = await pool.query('select id, user_id as "userId", balance from accounts');
-  
-  const result = users.rows.map(u => ({
-    id: u.id,
-    name: u.name,
-    accounts: accounts.rows.filter(a => a.userId === u.id)
-  }));
-
-  res.json(result);
+  try {
+    const users = await pool.query('select id, name from users');
+    const accounts = await pool.query('select id, user_id as "userId", balance from accounts');
+    const result = users.rows.map(u => ({
+      id: u.id,
+      name: u.name,
+      accounts: accounts.rows.filter(a => a.userId === u.id)
+    }));
+    res.json(result);
+  } catch (e) {
+    console.error('Error fetching users:', e.message);
+    res.status(500).json({ error: 'lookup failed' });
+  }
 });
+
 
 
 app.get('/transfers/:id', async (req, res) => {
