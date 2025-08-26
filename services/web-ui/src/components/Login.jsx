@@ -5,6 +5,7 @@ export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [initialBalance, setInitialBalance] = useState(0);
   const [error, setError] = useState('');
   const [isLogin, setIsLogin] = useState(true); // toggle zwischen Login und Register
 
@@ -16,12 +17,13 @@ export default function Login({ onLogin }) {
         const data = await login(username, password);
         onLogin(data.token, data.userId);
       } else {
-        const data = await register(name, username, password);
+        const data = await register(name, username, password, parseFloat(initialBalance));
         alert('Registrierung erfolgreich! Bitte einloggen.');
         setIsLogin(true);
         setUsername('');
         setPassword('');
         setName('');
+        setInitialBalance(0);
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Fehler');
@@ -33,15 +35,26 @@ export default function Login({ onLogin }) {
       <h2>{isLogin ? 'Login' : 'Registrieren'}</h2>
       <form onSubmit={handleSubmit}>
         {!isLogin && (
-          <div>
-            <label>Name:</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
+          <>
+            <div>
+              <label>Name:</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label>Initial Balance:</label>
+              <input
+                type="number"
+                value={initialBalance}
+                onChange={(e) => setInitialBalance(e.target.value)}
+                required
+              />
+            </div>
+          </>
         )}
         <div>
           <label>Username:</label>

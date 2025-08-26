@@ -175,9 +175,9 @@ app.get('/users', async (req, res) => {
 // Registrierung mit Passwort + Startkonto
 app.post('/register', async (req, res) => {
   try {
-    const { name, username, password } = req.body;
-    if (!name || !username || !password)
-      return res.status(400).json({ error: 'name, username & password required' });
+    const { name, username, password, initialBalance } = req.body;
+    if (!name || !username || !password || initialBalance == null)
+      return res.status(400).json({ error: 'name, username, password & initialBalance required' });
 
     // Prüfen, ob Username schon existiert
     const exists = await pool.query(`SELECT 1 FROM auth_users WHERE username = $1`, [username]);
@@ -198,7 +198,6 @@ app.post('/register', async (req, res) => {
     );
 
     // Startkonto erstellen
-    const initialBalance = 0;
     const accountResp = await axios.post(`${LEDGER_URL}/accounts`, { userId, initialBalance }, { timeout: 5000 });
 
     res.status(201).json({ 
