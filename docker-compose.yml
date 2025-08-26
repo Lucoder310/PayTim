@@ -5,7 +5,6 @@ services:
       POSTGRES_USER: sp
       POSTGRES_PASSWORD: sp
       POSTGRES_DB: sp
-    ports: ["5432:5432"]
     healthcheck:
       test: ["CMD-SHELL","pg_isready -U sp"]
       interval: 5s
@@ -15,7 +14,6 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - paytim_net
-    
 
   kafka:
     image: bitnami/kafka:3.7
@@ -30,7 +28,6 @@ services:
       KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
       KAFKA_KRAFT_CLUSTER_ID: "abcdefghijklmnopqrstuv"
       ALLOW_PLAINTEXT_LISTENER: "yes"
-    ports: ["9092:9092"]
     healthcheck:
       test: ["CMD-SHELL","/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
       interval: 10s
@@ -56,7 +53,6 @@ services:
       KAFKA_BROKERS: "kafka:9092"
       KAFKA_CLIENT_ID: "ledger"
       KAFKA_GROUP_ID: "ledger-consumer"
-    ports: ["3001:3001"]
     networks:
       - paytim_net
 
@@ -71,15 +67,13 @@ services:
         condition: service_healthy
     env_file:
       - ./services/api-svc/.env
-    ports: ["3000:3000"]
     networks:
       - paytim_net
-
 
   web-ui:
     build: ./services/web-ui
     ports:
-      - "8080:8080"
+      - "8080:8080" # einzig benötigtes externes Mapping
     depends_on:
       - api-svc
     networks:
@@ -90,4 +84,3 @@ volumes:
 
 networks:
   paytim_net:
-
