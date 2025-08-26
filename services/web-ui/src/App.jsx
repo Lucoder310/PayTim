@@ -26,6 +26,7 @@ export default function App() {
   if (!token) return <Login onLogin={handleLogin} />;
 
   const account = userData?.accounts?.[0];
+  let runningBalance = account?.balance;
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
@@ -46,9 +47,11 @@ export default function App() {
             const isOut = t.fromAccountId === account?.id;
             const name = isOut ? t.toName : t.fromName;
             const color = isOut ? 'red' : 'green';
+            const balanceAfter = runningBalance;
+            runningBalance += isOut ? t.amount : -t.amount;
             return (
               <li key={t.id} style={{ color }}>
-                {name}: {t.amount}
+                {name}: {t.amount} (Kontostand: {balanceAfter})
               </li>
             );
           })}
