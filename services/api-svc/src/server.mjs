@@ -17,10 +17,10 @@ process.on('uncaughtException', (err) => {
 });
 
 const PORT = process.env.PORT || 3000;
-const LEDGER_URL = process.env.LEDGER_URL || 'http://localhost:3001';
+const LEDGER_URL = process.env.LEDGER_URL || 'http://ledger-svc:3001';
 const kafka = new Kafka({
-clientId: process.env.KAFKA_CLIENT_ID || 'api',
-brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(',')
+  clientId: process.env.KAFKA_CLIENT_ID || 'api',
+  brokers: (process.env.KAFKA_BROKERS || 'kafka:9092').split(',')
 });
 const admin = kafka.admin();
 const producer = kafka.producer();
@@ -90,17 +90,19 @@ app.post('/accounts', async (req, res) => {
     res.status(e.response?.status || 500).json(e.response?.data || { error: 'creation failed' });
   }
 });
-
 // My Account – geschützter Endpunkt
 app.get('/my-account', authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
 
-    // 1. Alle Konten des Users abfragen
-    const accountsResp = await axios.get(`${LEDGER_URL}/users/${userId}/accounts`, { timeout: 5000 });
-    const accounts = accountsResp.data;
+    // Ledger liefert alle Users + Konten
+    const usersResp = await axios.get(`${LEDGER_URL}/users`, { timeout: 5000 });
+    const user = usersResp.data.find(u => u.id === userId);
+    if (!user) return res.status(404).json({ error: 'user not found' });
 
-    // 2. Alle Transfers der Konten abrufen (robust)
+    const accounts = user.accounts || [];
+
+    // Transfers für alle Konten abrufen
     const transfersResults = await Promise.allSettled(
       accounts.map(acc => axios.get(`${LEDGER_URL}/accounts/${acc.id}/transfers`, { timeout: 5000 }))
     );
@@ -112,7 +114,7 @@ app.get('/my-account', authenticateToken, async (req, res) => {
 
     res.json({ userId, accounts, transfers });
   } catch (err) {
-    console.error('My Account error:', err);
+    console.error('My Account error:', err.response?.data || err.message);
     res.status(500).json({ error: 'fetch failed' });
   }
 });
