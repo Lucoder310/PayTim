@@ -15,7 +15,7 @@ export default function Login({ onLogin }) {
     try {
       if (isLogin) {
         const data = await login(username, password);
-        onLogin(data.token, data.userId);
+        onLogin(data.token);
       } else {
         const data = await register(name, username, password, parseFloat(initialBalance));
         alert('Registrierung erfolgreich! Bitte einloggen.');

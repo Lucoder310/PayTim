@@ -66,6 +66,20 @@ app.get('/accounts/:id', async (req, res) => {
   }
 });
 
+// Transfers eines Accounts
+app.get('/accounts/:id/transfers', async (req, res) => {
+  try {
+    const r = await pool.query(
+      'select id, from_account as "fromAccountId", to_account as "toAccountId", amount from transfers where from_account=$1 or to_account=$1 order by created_at desc',
+      [req.params.id]
+    );
+    res.json(r.rows);
+  } catch (e) {
+    console.error('Error fetching transfers:', e.message);
+    res.status(500).json({ error: 'lookup failed' });
+  }
+});
+
 // alle Nutzer + deren Konten
 app.get('/users', async (req, res) => {
   try {

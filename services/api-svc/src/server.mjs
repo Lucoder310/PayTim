@@ -97,7 +97,8 @@ app.get('/my-account', authenticateToken, async (req, res) => {
 
     // Ledger liefert alle Users + Konten
     const usersResp = await axios.get(`${LEDGER_URL}/users`, { timeout: 5000 });
-    const user = usersResp.data.find(u => u.id === userId);
+    const allUsers = usersResp.data;
+    const user = allUsers.find(u => u.id === userId);
     if (!user) return res.status(404).json({ error: 'user not found' });
 
     const accounts = user.accounts || [];
@@ -107,12 +108,20 @@ app.get('/my-account', authenticateToken, async (req, res) => {
       accounts.map(acc => axios.get(`${LEDGER_URL}/accounts/${acc.id}/transfers`, { timeout: 5000 }))
     );
 
+    const accountNames = new Map();
+    allUsers.forEach(u => u.accounts.forEach(a => accountNames.set(a.id, u.name)));
+
     const transfers = transfersResults
       .filter(r => r.status === 'fulfilled')
       .map(r => r.value.data)
-      .flat();
+      .flat()
+      .map(t => ({
+        ...t,
+        fromName: accountNames.get(t.fromAccountId),
+        toName: accountNames.get(t.toAccountId)
+      }));
 
-    res.json({ userId, accounts, transfers });
+    res.json({ userId, name: user.name, accounts, transfers });
   } catch (err) {
     console.error('My Account error:', err.response?.data || err.message);
     res.status(500).json({ error: 'fetch failed' });
