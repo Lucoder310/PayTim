@@ -40,6 +40,12 @@ delta numeric(18,2) not null,
 balance_after numeric(18,2) not null,
 created_at timestamptz not null default now()
 );
+create table if not exists auth_users (
+id uuid primary key,
+user_id uuid references users(id),
+username text unique not null,
+password_hash text not null
+);
 `);
 }
 
