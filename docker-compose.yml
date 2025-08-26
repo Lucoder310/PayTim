@@ -61,7 +61,9 @@ services:
       - paytim_net
 
   api-svc:
-    build: ./services/api-svc
+    build: 
+      context: .                # <— Repo-Root
+      dockerfile: services/api-svc/Dockerfile
     depends_on:
       ledger-svc:
         condition: service_started
@@ -72,6 +74,9 @@ services:
       KAFKA_BROKERS: "kafka:9092"
       KAFKA_CLIENT_ID: "api"
       LEDGER_URL: "http://ledger-svc:3001"
+      AUTH_JWT_SECRET: "change-me"
+      AFTER_LOGIN_REDIRECT: "/ui/index.html"
+      WEB_UI_ORIGIN: "http://localhost:8080"
     ports: ["3000:3000"]
     networks:
       - paytim_net

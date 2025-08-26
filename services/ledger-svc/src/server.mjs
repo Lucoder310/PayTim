@@ -1,8 +1,8 @@
 import express from 'express';
 import { Kafka } from 'kafkajs';
 import { pool, migrate, withTx } from './db.mjs';
-import { nanoid } from 'nanoid';
 import { randomUUID } from 'node:crypto'; // NEU
+import bcrypt from 'bcryptjs';
 
 process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason));
 process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err));
@@ -92,6 +92,64 @@ app.get('/transfers/:id', async (req, res) => {
   );
   if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
   res.json(r.rows[0]);
+});
+
+// ---- AUTH: Register & Verify ----
+app.post('/auth/register', async (req, res) => {
+try {
+const { name, username, password } = req.body || {};
+if (!name || !username || !password) return res.status(400).json({ error: 'name, username, password required' });
+
+
+const uname = String(username).toLowerCase().trim();
+const exists = await pool.query('select 1 from auth_users where username=$1', [uname]);
+if (exists.rowCount) return res.status(409).json({ error: 'username taken' });
+
+
+const userId = randomUUID();
+const authId = randomUUID();
+const hash = await bcrypt.hash(password, 10);
+
+
+await withTx(async (c) => {
+await c.query('insert into users(id, name) values ($1,$2)', [userId, name]);
+await c.query('insert into auth_users(id, user_id, username, password_hash) values ($1,$2,$3,$4)',
+[authId, userId, uname, hash]);
+});
+
+
+res.status(201).json({ userId, username: uname, name });
+} catch (e) {
+console.error(e);
+res.status(500).json({ error: 'register failed' });
+}
+});
+
+
+app.post('/auth/verify', async (req, res) => {
+try {
+const { username, password } = req.body || {};
+if (!username || !password) return res.status(400).json({ error: 'username & password required' });
+const uname = String(username).toLowerCase().trim();
+
+
+const r = await pool.query(
+'select a.user_id as "userId", u.name, a.password_hash from auth_users a join users u on u.id=a.user_id where a.username=$1',
+[uname]
+);
+const row = r.rows[0];
+if (!row) return res.status(401).json({ ok: false, error: 'invalid credentials' });
+
+
+const ok = await bcrypt.compare(password, row.password_hash);
+if (!ok) return res.status(401).json({ ok: false, error: 'invalid credentials' });
+
+
+res.json({ ok: true, userId: row.userId, name: row.name, username: uname });
+} catch (e) {
+console.error(e);
+res.status(500).json({ error: 'verify failed' });
+}
 });
 
 // ---- Kafka Consumer: process transfer commands ----

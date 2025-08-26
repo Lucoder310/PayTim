@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login</title>
+</head>
+<body>
+  <h1>Login</h1>
+  <form id="loginForm">
+    <label>Username <input name="username" required /></label><br/>
+    <label>Passwort <input name="password" type="password" required /></label><br/>
+    <button type="submit">Einloggen</button>
+    <p id="err" style="color:red"></p>
+  </form>
+
+  <script> 
+    const API = 'http://localhost:3000'; // ggf. anpassen
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = { username: fd.get('username'), password: fd.get('password') };
+      try {
+        const resp = await fetch(`${API}/auth/login`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+          credentials: 'include',           // <- wichtig: Cookie annehmen
+        });
+        if (!resp.ok) {
+          const msg = await resp.json().catch(() => ({}));
+          document.getElementById('err').textContent = msg.error || 'Login fehlgeschlagen';
+          return;
+        }
+        // Login ok -> auf index
+        location.href = 'index.html';
+      } catch {
+        document.getElementById('err').textContent = 'Netzwerkfehler';
+      }
+    });
+  </script>
+</body>
+</html>
