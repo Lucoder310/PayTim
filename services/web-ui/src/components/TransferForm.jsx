@@ -11,12 +11,24 @@ export default function TransferForm({ fromAccountId, onTransferSuccess }) {
     if (!fromAccountId || !toAccount || !amount)
       return alert('Bitte alle Felder ausfüllen');
     try {
-      const res = await axiosInstance.post('/transfers', {
+      await axiosInstance.post('/transfers', {
         fromAccountId,
         toAccountId: toAccount,
         amount: parseFloat(amount),
       });
-      setResult(`Transfer gestartet: ${res.data.transferId}`);
+
+      let recipientName = 'Unbekannt';
+      try {
+        const usersResp = await axiosInstance.get('/users');
+        const recipient = usersResp.data.find(u =>
+          u.accounts.some(a => a.id === toAccount)
+        );
+        if (recipient?.name) recipientName = recipient.name;
+      } catch (lookupErr) {
+        console.error('recipient lookup failed:', lookupErr);
+      }
+
+      setResult(`${amount} gesendet an ${recipientName} |${toAccount}`);
       setToAccount('');
       setAmount('');
       onTransferSuccess && onTransferSuccess();
@@ -30,9 +42,9 @@ export default function TransferForm({ fromAccountId, onTransferSuccess }) {
   return (
     <div>
       <h2>Transfer</h2>
-      <div>Von Account: {fromAccountId}</div>
+      <div>AccountID: {fromAccountId}</div>
       <input
-        placeholder="Zu Account ID"
+        placeholder="Empfänger-ID"
         value={toAccount}
         onChange={e => setToAccount(e.target.value)}
       />
