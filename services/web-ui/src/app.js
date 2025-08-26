@@ -11,6 +11,34 @@ const axiosInstance = axios.create({ timeout: 5000 });
 
 let currentAccountId = null;
 
+async function createAccount() {
+  const nameEl = document.getElementById('newUserName');
+  const balanceEl = document.getElementById('newUserBalance');
+  const infoEl = document.getElementById('newAccountInfo');
+  if (!nameEl || !balanceEl || !infoEl) return;
+  const name = nameEl.value.trim();
+  const initialBalance = parseFloat(balanceEl.value);
+  if (!name || isNaN(initialBalance)) {
+    return alert('Bitte Name und Startguthaben eingeben');
+  }
+  infoEl.innerText = 'Erstelle Account...';
+  try {
+    const user = await axiosInstance.post(`${API}/users`, { name });
+    const account = await axiosInstance.post(`${API}/accounts`, {
+      userId: user.data.id,
+      initialBalance
+    });
+    infoEl.innerText = `Account erstellt. ID: ${account.data.id}`;
+    const loginInput = document.getElementById('loginAccountId');
+    if (loginInput) loginInput.value = account.data.id;
+    await login();
+  } catch (e) {
+    console.error('createAccount error:', e);
+    const msg = e.response?.data?.error || 'Fehler beim Erstellen';
+    infoEl.innerText = msg;
+  }
+}
+
 async function login() {
   const idEl = document.getElementById('loginAccountId');
   if (!idEl) return;
