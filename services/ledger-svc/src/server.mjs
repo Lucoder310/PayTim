@@ -57,7 +57,10 @@ app.post('/accounts', async (req, res) => {
 // /accounts/:id
 app.get('/accounts/:id', async (req, res) => {
   try {  // <<< NEU
-    const r = await pool.query('select id, user_id as "userId", balance from accounts where id=$1', [req.params.id]);
+    const r = await pool.query(
+      'select a.id, a.user_id as "userId", u.name, a.balance from accounts a join users u on a.user_id = u.id where a.id=$1',
+      [req.params.id]
+    );
     if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
     res.json(r.rows[0]);
   } catch (e) {  // <<< NEU
