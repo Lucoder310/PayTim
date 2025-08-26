@@ -14,30 +14,35 @@
     <p id="err" style="color:red"></p>
   </form>
 
-  <script> 
-    const API = 'http://localhost:3000'; // ggf. anpassen
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const body = { username: fd.get('username'), password: fd.get('password') };
-      try {
-        const resp = await fetch(`${API}/auth/login`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body),
-          credentials: 'include',           // <- wichtig: Cookie annehmen
-        });
-        if (!resp.ok) {
-          const msg = await resp.json().catch(() => ({}));
-          document.getElementById('err').textContent = msg.error || 'Login fehlgeschlagen';
-          return;
-        }
-        // Login ok -> auf index
-        location.href = 'index.html';
-      } catch {
-        document.getElementById('err').textContent = 'Netzwerkfehler';
+  <script>
+  const API = 'http://localhost:3000'; // oder dynamisch wie in guard.js
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = {
+      username: String(fd.get('username') || '').trim(),
+      password: String(fd.get('password') || ''),
+    };
+    try {
+      const resp = await fetch(`${API}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include', // <-- Cookie setzen lassen
+      });
+      if (!resp.ok) {
+        const msg = await resp.json().catch(() => ({}));
+        document.getElementById('err').textContent = msg.error || 'Login fehlgeschlagen';
+        return;
       }
-    });
-  </script>
+      // Login ok -> auf index.html, ohne zurück zur Login-Seite zu springen
+      location.replace('index.html');
+    } catch {
+      document.getElementById('err').textContent = 'Netzwerkfehler';
+    }
+  });
+</script>
+
 </body>
 </html>

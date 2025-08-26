@@ -1,9 +1,11 @@
 FROM node:20-alpine
-
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install --silent
+
+# nur statische Files kopieren
 COPY src/ ./
 
+# static server ins Image
+RUN npm install -g serve
+
 EXPOSE 8080
-CMD ["npx", "serve", "-s", ".", "-l", "8080"]
+CMD ["serve", "-s", ".", "-l", "8080"]
